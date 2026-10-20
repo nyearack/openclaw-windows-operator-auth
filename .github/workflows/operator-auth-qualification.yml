@@ -66,6 +66,19 @@ jobs:
           dotnet publish src/OpenClaw.Tray.WinUI -c Release -r win-x64 --self-contained --no-restore -o publish -p:Version=2026.9.8-operatorauth.1 -p:InformationalVersion=2026.9.8-operatorauth.1+$env:GITHUB_SHA
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           ./scripts/Test-ReleaseNativeDependencies.ps1 -PayloadPath publish -RequireAppLocalVCRuntime
+      - name: Prepare disposable runner desktop for two-width UI proof
+        run: |
+          # Only the disposable hosted runner display is changed; never the user's PC.
+          if (-not (Get-Command Set-DisplayResolution -ErrorAction SilentlyContinue)) {
+            throw 'Hosted runner lacks supported display resolution command.'
+          }
+          Set-DisplayResolution -Width 1920 -Height 1080 -Force
+          Add-Type -AssemblyName System.Windows.Forms
+          $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+          Write-Host "Hosted runner desktop: $($bounds.Width)x$($bounds.Height)"
+          if ($bounds.Width -lt 1600 -or $bounds.Height -lt 1000) {
+            throw 'Hosted runner cannot supply required two-width desktop.'
+          }
       # Real WinUI smoke requires an interactive desktop. Failure/skips are not qualification.
       - name: Isolated real app desktop smoke
         run: |
