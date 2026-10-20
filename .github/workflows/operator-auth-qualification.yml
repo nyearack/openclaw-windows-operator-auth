@@ -28,7 +28,7 @@ jobs:
         run: |
           git clone --no-checkout . upstream
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          git -C upstream checkout --detach 2ba89f377ce8ce3f5ddfc452e4d509329f109114
+          git -C upstream checkout -B main 2ba89f377ce8ce3f5ddfc452e4d509329f109114
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           # Copy only the generic regression tests into the pristine upstream worktree.
           Copy-Item tests/OpenClaw.Connection.Tests/OperatorSharedTokenPreferenceTests.cs upstream/tests/OpenClaw.Connection.Tests/
