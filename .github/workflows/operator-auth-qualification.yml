@@ -1,0 +1,74 @@
+name: Operator auth repair qualification
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  qualify:
+    runs-on: windows-2025
+    timeout-minutes: 55
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
+        with:
+          dotnet-version: '10.0.400'
+      - name: Regression assertions fail on exact upstream
+        run: |
+          git worktree add upstream 2ba89f377ce8ce3f5ddfc452e4d509329f109114
+          # Copy only the generic regression tests into the pristine upstream worktree.
+          Copy-Item tests/OpenClaw.Connection.Tests/OperatorSharedTokenPreferenceTests.cs upstream/tests/OpenClaw.Connection.Tests/
+          Copy-Item tests/OpenClaw.Connection.Tests/GatewayClientFactorySharedAuthTests.cs upstream/tests/OpenClaw.Connection.Tests/
+          Copy-Item tests/OpenClaw.Shared.Tests/OperatorFixedSharedAuthTests.cs upstream/tests/OpenClaw.Shared.Tests/
+          Push-Location upstream
+          dotnet test tests/OpenClaw.Connection.Tests -c Release --filter 'FullyQualifiedName~OperatorSharedTokenPreferenceTests|FullyQualifiedName~GatewayClientFactorySharedAuthTests' --logger 'trx;LogFileName=baseline.trx' --results-directory ../qualification/baseline
+          $code = $LASTEXITCODE
+          Pop-Location
+          if ($code -eq 0) { throw 'Baseline unexpectedly passed regression assertions.' }
+          [xml]$trx = Get-Content qualification/baseline/baseline.trx -Raw
+          if ([int]$trx.TestRun.ResultSummary.Counters.failed -lt 2) { throw 'Expected reproducible assertion failures, not compile/infrastructure failure.' }
+          Push-Location upstream
+          dotnet test tests/OpenClaw.Shared.Tests -c Release --filter FullyQualifiedName~OperatorFixedSharedAuthTests --logger 'trx;LogFileName=baseline-shared.trx' --results-directory ../qualification/baseline
+          $sharedCode = $LASTEXITCODE
+          Pop-Location
+          if ($sharedCode -eq 0) { throw 'Baseline reconnect regression unexpectedly passed.' }
+          [xml]$shared = Get-Content qualification/baseline/baseline-shared.trx -Raw
+          if ([int]$shared.TestRun.ResultSummary.Counters.failed -lt 1) { throw 'Expected baseline handshake assertion failure.' }
+          exit 0
+      - name: Patched connection and protocol suites
+        run: |
+          dotnet test tests/OpenClaw.Connection.Tests -c Release --logger 'trx;LogFileName=connection.trx' --results-directory qualification/patched
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet test tests/OpenClaw.Shared.Tests -c Release --logger 'trx;LogFileName=shared.trx' --results-directory qualification/patched
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Connection transaction owner tests
+        run: |
+          dotnet test tests/OpenClaw.Tray.Tests -c Release -r win-x64 --logger 'trx;LogFileName=tray.trx' --results-directory qualification/patched
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Official self-contained x64 publish path
+        run: |
+          dotnet restore src/OpenClaw.Tray.WinUI -r win-x64
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet publish src/OpenClaw.Tray.WinUI -c Release -r win-x64 --self-contained --no-restore -o publish -p:Version=2026.9.8-operatorauth.1 -p:InformationalVersion=2026.9.8-operatorauth.1+$env:GITHUB_SHA
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./scripts/Test-ReleaseNativeDependencies.ps1 -PayloadPath publish -RequireAppLocalVCRuntime
+      # Real WinUI smoke requires an interactive desktop. Failure/skips are not qualification.
+      - name: Isolated real app desktop smoke
+        run: |
+          ./scripts/test-gateway-fixture.ps1 -AppPath publish/OpenClaw.Tray.WinUI.exe -Configuration Release -ArtifactsDirectory qualification/fixture
+      - name: Package portable candidate with provenance
+        run: |
+          New-Item -ItemType Directory -Path candidate -Force | Out-Null
+          $sha = git rev-parse HEAD
+          $files = Get-ChildItem publish -File -Recurse | Sort-Object FullName | ForEach-Object { @{path=$_.FullName.Substring((Resolve-Path publish).Path.Length+1);sha256=(Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant();bytes=$_.Length} }
+          @{source=$sha;base='2ba89f377ce8ce3f5ddfc452e4d509329f109114';run=$env:GITHUB_RUN_ID;repository=$env:GITHUB_REPOSITORY;architecture='win-x64';trust='Custom unsigned build, not an official signed release';files=$files} | ConvertTo-Json -Depth 5 | Set-Content publish/BUILD-PROVENANCE.json
+          Compress-Archive -Path publish/* -DestinationPath candidate/openclaw-operator-auth-win-x64.zip
+          $package = Get-Item candidate/openclaw-operator-auth-win-x64.zip
+          if ($package.Length -gt 300MB) { throw 'Candidate exceeds 300 MiB publication ceiling.' }
+          Get-FileHash $package.FullName -Algorithm SHA256 | Format-List
+      # Artifact upload intentionally absent until included storage and existing zero-overage cap are verified.

@@ -21,7 +21,8 @@ public sealed class GatewayClientFactory : IGatewayClientFactory
             tokenIsBootstrapToken: credential.IsBootstrapToken,
             bootstrapPairAsNode: false,
             identityPath: identityPath,
-            ignoreStoredDeviceToken: credential.IsBootstrapToken,
+            ignoreStoredDeviceToken: credential.IsBootstrapToken ||
+                credential.Source == CredentialResolver.SourceSharedGatewayToken,
             assistantMediaAuthToken: credential.InteractiveHttpToken);
 
         return new GatewayClientLifecycleAdapter(client);

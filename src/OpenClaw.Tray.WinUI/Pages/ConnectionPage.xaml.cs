@@ -1922,6 +1922,7 @@ public sealed partial class ConnectionPage : Page
     private void OnEnterAddGateway(object sender, RoutedEventArgs e)
     {
         _editingGatewayId = null;
+        DirectPreferSharedTokenForOperatorCheckBox.IsChecked = false;
         _userIntent = UserIntent.AddingGateway;
         ClearAddGatewaySshFields();
         // Direct is default — make sure the selector is on Direct.
@@ -1938,6 +1939,7 @@ public sealed partial class ConnectionPage : Page
     private void OnEnterAddGatewayDirect(object sender, RoutedEventArgs e)
     {
         _editingGatewayId = null;
+        DirectPreferSharedTokenForOperatorCheckBox.IsChecked = false;
         _userIntent = UserIntent.AddingGateway;
         ClearAddGatewaySshFields();
         ShowAddPane("direct");
@@ -1948,6 +1950,7 @@ public sealed partial class ConnectionPage : Page
     private void OnEnterAddGatewaySetupCode(object sender, RoutedEventArgs e)
     {
         _editingGatewayId = null;
+        DirectPreferSharedTokenForOperatorCheckBox.IsChecked = false;
         _userIntent = UserIntent.AddingGateway;
         ClearAddGatewaySshFields();
         ShowAddPane("setup");
@@ -1965,6 +1968,7 @@ public sealed partial class ConnectionPage : Page
     private void OnAddBack(object sender, RoutedEventArgs e)
     {
         _editingGatewayId = null;
+        DirectPreferSharedTokenForOperatorCheckBox.IsChecked = false;
         _userIntent = UserIntent.None;
         // Clear transient form state so re-entering is fresh
         AddResultText.Text = "";
@@ -2466,6 +2470,7 @@ public sealed partial class ConnectionPage : Page
         DirectUrlBox.Text = rec.Url;
         DirectTokenBox.Text = rec.SharedGatewayToken ?? "";
         DirectNameBox.Text = rec.FriendlyName ?? "";
+        DirectPreferSharedTokenForOperatorCheckBox.IsChecked = rec.PreferSharedTokenForOperator;
         if (rec.SshTunnel != null)
         {
             AddSshExpander.IsExpanded = true;
@@ -2612,6 +2617,7 @@ public sealed partial class ConnectionPage : Page
         DirectUrlBox.Text = rec.Url;
         DirectTokenBox.Text = rec.SharedGatewayToken ?? "";
         DirectNameBox.Text = rec.FriendlyName ?? "";
+        DirectPreferSharedTokenForOperatorCheckBox.IsChecked = rec.PreferSharedTokenForOperator;
         if (rec.SshTunnel != null)
         {
             AddSshExpander.IsExpanded = true;
@@ -2866,14 +2872,16 @@ public sealed partial class ConnectionPage : Page
                         friendly,
                         sshConfig,
                         _editingGatewayId,
-                        PreserveExistingSharedTokenWhenMissing: true)
+                        PreserveExistingSharedTokenWhenMissing: true,
+                        PreferSharedTokenForOperator: DirectPreferSharedTokenForOperatorCheckBox.IsChecked == true)
                     : new GatewayDirectConnectRequest(
                         url,
                         submittedToken,
                         friendly,
                         sshConfig,
                         _editingGatewayId,
-                        PreserveExistingSharedTokenWhenMissing: false));
+                        PreserveExistingSharedTokenWhenMissing: false,
+                        PreferSharedTokenForOperator: DirectPreferSharedTokenForOperatorCheckBox.IsChecked == true));
             if (result.Outcome == GatewayDirectConnectOutcome.Failed)
             {
                 AddResultText.Text = $"✗ {result.Error}";
@@ -3191,6 +3199,7 @@ public sealed partial class ConnectionPage : Page
         // Pre-fill the Direct pane and enter AddGateway mode. User types
         // the token there and clicks Save & connect.
         _editingGatewayId = null;
+        DirectPreferSharedTokenForOperatorCheckBox.IsChecked = false;
         DirectUrlBox.Text = url;
         DirectTokenBox.Text = "";
         DirectNameBox.Text = "";

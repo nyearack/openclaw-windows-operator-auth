@@ -2235,7 +2235,9 @@ public partial class OpenClawGatewayClient : WebSocketClientBase, IOperatorGatew
             return new BootstrapTokenConnectCredential(_token);
         }
 
-        return new TokenConnectCredential(_connectAuthToken);
+        // A deliberately selected shared credential remains the signing and auth.token
+        // credential even after hello-ok issues a device token for future device-mode use.
+        return new TokenConnectCredential(_ignoreStoredDeviceToken ? _token : _connectAuthToken);
     }
 
     private string? EffectiveOperatorDeviceToken =>
@@ -2563,7 +2565,8 @@ public partial class OpenClawGatewayClient : WebSocketClientBase, IOperatorGatew
                     ? TryGetHandshakeDeviceTokenScopesCore(payload, OperatorRole, allowDirectDeviceTokenFallback: false)
                     : TryGetHandshakeDeviceTokenScopesCore(payload, preferredRole: null);
                 var stored = TryStoreHandshakeDeviceToken(OperatorRole, newDeviceToken, deviceTokenScopes);
-                _connectAuthToken = newDeviceToken;
+                if (!_ignoreStoredDeviceToken)
+                    _connectAuthToken = newDeviceToken;
                 if (stored)
                     _logger.Info("Operator device token stored for reconnect");
                 DeviceTokenReceived?.Invoke(this, new DeviceTokenReceivedEventArgs(newDeviceToken, deviceTokenScopes, "operator"));

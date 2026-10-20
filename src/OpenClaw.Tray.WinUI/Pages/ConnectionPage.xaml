@@ -1016,6 +1016,11 @@
                                    Style="{StaticResource CaptionTextBlockStyle}"
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                    TextWrapping="Wrap"/>
+                        <CheckBox x:Name="DirectPreferSharedTokenForOperatorCheckBox"
+                                  Content="Prefer shared token for operator connections"
+                                  IsChecked="False"
+                                  AutomationProperties.AutomationId="AddDirectPreferSharedTokenForOperator"
+                                  ToolTipService.ToolTip="Use the shared token instead of the paired operator token when available. Node authentication is unchanged."/>
                         <TextBox x:Uid="ConnectionPage_NameOptional" x:Name="DirectNameBox"
                                  Header="Name (optional)"
                                  PlaceholderText="My gateway"

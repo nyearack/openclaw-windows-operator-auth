@@ -18,6 +18,9 @@ public sealed record GatewayRecord
     /// <summary>Long-lived shared token for any device.</summary>
     public string? SharedGatewayToken { get; init; }
 
+    /// <summary>Explicitly prefer the shared token for operator connections only. Defaults to false.</summary>
+    public bool PreferSharedTokenForOperator { get; init; }
+
     /// <summary>One-time bootstrap token for first-time pairing.</summary>
     public string? BootstrapToken { get; init; }
 

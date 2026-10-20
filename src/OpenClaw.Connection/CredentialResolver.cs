@@ -9,7 +9,8 @@ namespace OpenClaw.Connection;
 /// Node order:     NodeDeviceToken → SharedGatewayToken → BootstrapToken → null.
 /// </para>
 /// <para>
-/// Critical invariant: a stored device token ALWAYS wins over shared/bootstrap tokens.
+/// A stored device token wins unless the operator explicitly prefers an available shared token.
+/// Node device-token precedence is unchanged.
 /// Returning a bootstrap token for a paired device would downgrade scopes and may
 /// trigger unnecessary re-pairing.
 /// </para>
@@ -34,6 +35,14 @@ public sealed class CredentialResolver : ICredentialResolver
     public GatewayCredentialResolution ResolveOperatorDetailed(GatewayRecord record, string identityPath)
     {
         ArgumentNullException.ThrowIfNull(record);
+
+        if (record.PreferSharedTokenForOperator &&
+            !string.IsNullOrWhiteSpace(record.SharedGatewayToken))
+        {
+            var credential = new GatewayCredential(
+                record.SharedGatewayToken, false, SourceSharedGatewayToken);
+            return new GatewayCredentialResolution(credential, GatewayCredentialResolutionStatus.Resolved);
+        }
 
         return ResolveRole(
             _identityReader.ReadStoredDeviceToken(identityPath),

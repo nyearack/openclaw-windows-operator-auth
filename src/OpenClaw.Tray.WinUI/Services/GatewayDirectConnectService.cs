@@ -18,7 +18,8 @@ internal sealed record GatewayDirectConnectRequest(
     string? EditingGatewayId = null,
     bool PreserveExistingSharedTokenWhenMissing = false,
     string? BootstrapToken = null,
-    bool NativeSetup = false);
+    bool NativeSetup = false,
+    bool? PreferSharedTokenForOperator = null);
 
 internal sealed record GatewayDirectConnectResult(
     GatewayDirectConnectOutcome Outcome,
@@ -377,6 +378,9 @@ internal sealed class GatewayDirectConnectService
                 ((request.NativeSetup || string.IsNullOrWhiteSpace(request.SharedToken)) && preserveExistingSharedToken
                     ? existing?.BootstrapToken
                     : null),
+            PreferSharedTokenForOperator = request.PreferSharedTokenForOperator ??
+                (string.Equals(recordId, existing?.Id, StringComparison.Ordinal) &&
+                 existing?.PreferSharedTokenForOperator == true),
             SshTunnel = request.SshTunnel,
             LastConnected = existing?.LastConnected,
         }.PreserveAdvancedFields(existing);
