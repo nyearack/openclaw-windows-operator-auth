@@ -1,6 +1,9 @@
 name: Operator auth repair qualification
 on:
   workflow_dispatch:
+concurrency:
+  group: operator-auth-qualification
+  cancel-in-progress: false
 permissions:
   contents: read
 jobs:
@@ -70,5 +73,14 @@ jobs:
           Compress-Archive -Path publish/* -DestinationPath candidate/openclaw-operator-auth-win-x64.zip
           $package = Get-Item candidate/openclaw-operator-auth-win-x64.zip
           if ($package.Length -gt 300MB) { throw 'Candidate exceeds 300 MiB publication ceiling.' }
-          Get-FileHash $package.FullName -Algorithm SHA256 | Format-List
-      # Artifact upload intentionally absent until included storage and existing zero-overage cap are verified.
+          $hash = (Get-FileHash $package.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $($package.Name)" | Set-Content candidate/SHA256SUMS -Encoding ascii
+          Get-Content candidate/SHA256SUMS
+      - name: Retain qualified portable candidate only
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: openclaw-operator-auth-win-x64
+          path: candidate/*
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
